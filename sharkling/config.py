@@ -1,0 +1,1 @@
+LOG_PATH = '/tmp/discord.log'
