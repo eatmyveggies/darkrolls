@@ -24,7 +24,8 @@ class Sharkling(discord.Client):
     def run(self):
         @self.event
         async def on_ready():
-            logger.info('{} ({}) logged in!'.format(self.user.name, self.user.id))
+            logger.info('{name} ({discord_id}) logged in!'.format(
+                name=self.user.name, discord_id=self.user.id))
 
         @self.event
         async def on_message(message):
@@ -34,11 +35,21 @@ class Sharkling(discord.Client):
                     user=message.author, timestamp=message.timestamp
                 ))
                 try:
-                    latest_roll = roll.check(message.timestamp.strftime("%Y%m%d%H%M"))(
-                        roller=message.author, timestamp=message.timestamp,
+                    # check if this roll has been rolled before
+                    attempted_roll = message.timestamp.strftime("%Y%m%d%H%M")
+                    if self.__last_roll and self.__last_roll.timestamp.strftime("%Y%m%d%H%M")[
+                                            roll.PRECEDENCE[0].LENGTH:] == attempted_roll[roll.PRECEDENCE[0].LENGTH:]:
+                        raise roll.InvalidRoll(
+                            '**{author}** already rolled that one, you\'re too slow'.format(
+                                author=self.__last_roll.author))
+
+                    # check if it is a roll to begin with, and not a failed attempt
+                    latest_roll = roll.check(attempted_roll)(
+                        author=message.author, timestamp=message.timestamp,
                         streak_multiplier=roll.get_streak_multiplier(message.author, self.__last_roll)
                     )
 
+                    # increment author's score
                     try:
                         self.__scores[message.author] += latest_roll.points
                     except KeyError:
@@ -51,17 +62,33 @@ class Sharkling(discord.Client):
                         plural='s' if self.__scores[message.author] > 1 else '')
                     logger.info('[success] {reply}'.format(reply=reply))
 
-                except roll.InvalidRoll:
-                    reply = '[failure] {} is an invalid roll, sorry'.format(message.timestamp)
+                except roll.InvalidRoll as e:
+                    reply = '[failure] {error}'.format(message.timestamp, error=e.message)
                     logger.info(reply)
 
                 await self.send_message(message.channel, reply)
 
             elif message.content.startswith('!score'):
-                score = '```{table}```\n'.format(table=tabulate.tabulate(
-                    sorted(self.__scores.items(), key=lambda x: x[1], reverse=True), headers=['user', 'points'])
+                # build a table of the scores and a short line with who is the author of the last roll
+                score = '```{table}\n\n{note}```'.format(table=tabulate.tabulate(
+                    sorted(self.__scores.items(), key=lambda x: x[1], reverse=True), headers=['user', 'points']),
+                    note='{streaker} is currently riding the {multiplier}x streak'.format(
+                        streaker=self.__last_roll.author,
+                        multiplier=self.__last_roll.streak_multiplier
+                    ) if self.__last_roll else ''
                 )
                 await self.send_message(message.channel, score)
+
+            elif message.content.startswith('!help'):
+                help_message = '```{help_message}```'.format(help_message=tabulate.tabulate(
+                    [
+                        ('!roll', 'try your luck at a roll'),
+                        ('!score', 'see the top rollers'),
+                        ('!help', 'print this message')
+                    ],
+                    headers=['command', 'description']
+                ))
+                await self.send_message(message.channel, help_message)
 
         super(Sharkling, self).run(os.environ[config.DISCORD_TOKEN_ENV])
 
