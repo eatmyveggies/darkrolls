@@ -1,56 +1,70 @@
 import os
 import discord
 import logging
+import tabulate
+from . import roll
 from . import config
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
+console = logging.StreamHandler()
+console.setFormatter(logging.Formatter(config.LOG_FMT))
 handler = logging.FileHandler(filename=config.LOG_PATH, encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+handler.setFormatter(logging.Formatter(config.LOG_FMT))
 logger.addHandler(handler)
+logger.addHandler(console)
 
 
-class ROLL(object):
-    Endings = [
-        [-8, 'octs'],
-        [-7, 'septs'],
-        [-6, 'sexts'],
-        [-5, 'quints'],
-        [-4, 'quads'],
-        [-3, 'trips'],
-        [-2, 'dubs'],
-    ]
+class Sharkling(discord.Client):
+    def __init__(self):
+        super(Sharkling, self).__init__()
+        self.__last_roll = None
+        self.__scores = dict()
 
+    def run(self):
+        @self.event
+        async def on_ready():
+            logger.info('{} ({}) logged in!'.format(self.user.name, self.user.id))
 
-class InvalidRoll(Exception):
-    pass
+        @self.event
+        async def on_message(message):
+            if message.content.startswith('!rol'):
+                message.timestamp = message.timestamp.replace(microsecond=0)
+                logger.info('[attempt] roll from "{user}" at "{timestamp}"'.format(
+                    user=message.author, timestamp=message.timestamp
+                ))
+                try:
+                    latest_roll = roll.check(message.timestamp.strftime("%Y%m%d%H%M"))(
+                        roller=message.author, timestamp=message.timestamp,
+                        streak_multiplier=roll.get_streak_multiplier(message.author, self.__last_roll)
+                    )
 
+                    try:
+                        self.__scores[message.author] += latest_roll.points
+                    except KeyError:
+                        self.__scores[message.author] = latest_roll.points
+                    finally:
+                        self.__last_roll = latest_roll
 
-def compute_roll(timestamp):
-    for depth, roll_name in ROLL.Endings:
-        if len(set(timestamp[depth:])) == 1:
-            return roll_name
-    raise InvalidRoll("{} is an invalid roll".format(timestamp))
+                    reply = '{reply}. **{author}** now has {total} point{plural}.'.format(
+                        reply=latest_roll, author=message.author, total=self.__scores[message.author],
+                        plural='s' if self.__scores[message.author] > 1 else '')
+                    logger.info('[success] {reply}'.format(reply=reply))
 
+                except roll.InvalidRoll:
+                    reply = '[failure] {} is an invalid roll, sorry'.format(message.timestamp)
+                    logger.info(reply)
 
-def run():
-    client = discord.Client()
+                await self.send_message(message.channel, reply)
 
-    @client.event
-    async def on_ready():
-        logger.info('{} ({}) logged in!'.format(client.user.name, client.user.id))
+            elif message.content.startswith('!score'):
+                score = '```{table}```\n'.format(table=tabulate.tabulate(
+                    sorted(self.__scores.items(), key=lambda x: x[1], reverse=True), headers=['user', 'points'])
+                )
+                await self.send_message(message.channel, score)
 
-    @client.event
-    async def on_message(message):
-        if message.content.startswith('!roll'):
-            try:
-                outcome = compute_roll(message.timestamp.strftime("%Y%m%d%H%M"))
-            except InvalidRoll:
-                outcome = '{} is an invalid roll, sorry.'.format(message.timestamp.replace(microsecond=0))
-            await client.send_message(message.channel, outcome)
-
-    client.run(os.environ['SHARKLING_TOKEN'])
+        super(Sharkling, self).run(os.environ[config.DISCORD_TOKEN_ENV])
 
 
 if __name__ == '__main__':
-    run()
+    Sharkling().run()
