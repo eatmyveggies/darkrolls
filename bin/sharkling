@@ -7,4 +7,4 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import sharkling
 
 if __name__ == '__main__':
-    sharkling.Sharkling().run()
+    sharkling.Sharkling(fresh_run=True if 'fresh' in sys.argv else False).run()
