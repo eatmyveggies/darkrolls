@@ -6,7 +6,7 @@ def load(f):
         with open(f, 'r') as fp:
             return json.load(fp)
     except (IOError, OSError):
-        return {}
+        return dict()
 
 
 def save(data, f):
