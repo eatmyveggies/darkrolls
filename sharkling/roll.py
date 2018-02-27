@@ -132,7 +132,6 @@ class Dubs(__Roll):
         if rng <= min((streak_multiplier - 1) * Dubs.BAD_RNG_BASE_PERCENT, 50):
             self.rng_points_multiplier = Dubs.BAD_RNG_POINT_MULTIPLIER
             self.streak_multiplier += Dubs.BAD_RNG_MULTIPLIER_MODIFIER
-
             # hacky way to make sure the multiplier doesn't go below 1
             self.streak_multiplier = max(self.streak_multiplier, 1)
             raise BadRng(roll=self)
