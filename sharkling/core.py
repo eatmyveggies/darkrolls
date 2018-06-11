@@ -10,7 +10,7 @@ logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
 console = logging.StreamHandler()
 console.setFormatter(logging.Formatter(config.LOG_FMT))
-handler = logging.FileHandler(filename=config.LOG_PATH, encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename=config.LOG_PATH, encoding='utf-8', mode='a')
 handler.setFormatter(logging.Formatter(config.LOG_FMT))
 logger.addHandler(handler)
 logger.addHandler(console)
@@ -21,7 +21,10 @@ class Sharkling(discord.Client):
         super(Sharkling, self).__init__()
         self.__previous_roll = None
         self.__last_rolls = dict()
-        self.__scores = dict() if fresh_run else backend.load(os.path.expandvars(config.SCORE_DATA_PATH))
+        self.__cooldowns = dict()
+        self.__highest = dict()
+        self.__scores = {'points': dict(), 'highest': dict()} if fresh_run else backend.load(
+            os.path.expandvars(config.SCORE_DATA_PATH))
 
     def run(self):
         @self.event
@@ -34,17 +37,19 @@ class Sharkling(discord.Client):
 
             if message.content.lower().startswith('!rol'):
                 message.author.nick = message.author.nick if message.author.nick else str(message.author)
-                message.timestamp = message.timestamp
+                message.timestamp = backend.localize(message.timestamp)
                 logger.info('[attempt] roll from "{owner}" at "{timestamp}"'.format(
                     owner=message.author.nick, timestamp=message.timestamp
                 ))
                 try:
                     # check if cooldown period has passed since last roll
-                    if self.__last_rolls.get(message.author.nick) and \
-                                    (message.timestamp - self.__last_rolls[
-                                        message.author.nick].timestamp).total_seconds() < config.ROLL_COOLDOWN:
+                    if self.__cooldowns.get(message.author.nick) and \
+                                    (message.timestamp - self.__cooldowns[
+                                        message.author.nick]).total_seconds() < config.ROLL_COOLDOWN:
                         raise roll.OnCooldown(
                             message='take a breather and try again in a bit, {owner}'.format(owner=message.author.nick))
+
+                    self.__cooldowns[message.author.nick] = message.timestamp
 
                     # check if this exact roll has been rolled before
                     attempted_roll = message.timestamp.strftime("%Y%m%d%H%M")
@@ -52,7 +57,10 @@ class Sharkling(discord.Client):
                                                 roll.PRECEDENCE[0].LENGTH:] == attempted_roll[
                                                                                roll.PRECEDENCE[0].LENGTH:]:
                         raise roll.Duplicate(
-                            '**{owner}** already rolled that one'.format(owner=self.__previous_roll.owner)
+                            '**{owner}** already rolled that one, you were {delta} too slow'.format(
+                                owner=self.__previous_roll.owner,
+                                delta=message.timestamp - self.__previous_roll.timestamp
+                            )
                         )
                     try:  # check if it is a roll to begin with, and not a failed attempt
                         latest_roll = roll.check(attempted_roll)(
@@ -66,17 +74,32 @@ class Sharkling(discord.Client):
                         tag, reaction = 'CHECKED', '\U0001F64F'  # todo: move into config
 
                     try:  # increment the user's score
-                        self.__scores[message.author.nick] += latest_roll.points
+                        self.__scores['points'][message.author.nick] += latest_roll.points
                     except KeyError:
-                        self.__scores[message.author.nick] = latest_roll.points
+                        self.__scores['points'][message.author.nick] = latest_roll.points
                     finally:
                         self.__previous_roll = latest_roll
                         self.__last_rolls[message.author.nick] = latest_roll
 
+                        # check if the highscores need to be updated for both roll and streak
+                        # todo maybe think of making this nicer (group all dicts into one 'state' object)
+                        try:
+                            if self.__scores['highest']['roll'].points < latest_roll.points:
+                                self.__scores['highest']['roll'] = latest_roll
+                        except KeyError:
+                            self.__scores['highest']['roll'] = latest_roll
+
+                        try:
+                            if self.__scores['highest']['streak'].streak_multiplier < latest_roll.streak_multiplier:
+                                self.__scores['highest']['streak'] = latest_roll
+                        except KeyError:
+                            self.__scores['highest']['streak'] = latest_roll
+
                     # construct the successful roll reply message contents
-                    reply = '**[{tag}]** {reply}. **{author}** now has {total} point{plural}.'.format(
-                        reply=latest_roll, author=message.author.nick, total=self.__scores[message.author.nick],
-                        plural='s' if self.__scores[message.author.nick] > 1 else '', tag=tag)
+                    reply = '**[{tag}]** {reply}. **{author}** now has {total} point{plural}'.format(
+                        reply=latest_roll, author=message.author.nick,
+                        total=self.__scores['points'][message.author.nick],
+                        plural='s' if self.__scores['points'][message.author.nick] > 1 else '', tag=tag)
 
                     # decorate the user's roll message with an appropriate reaction depending on the outcome
                     await self.add_reaction(message, reaction)
@@ -102,12 +125,17 @@ class Sharkling(discord.Client):
 
             elif message.content.startswith('!score'):
                 # build a table of the scores and a short line with who is the author.nick of the last roll
-                score = '```{table}\n\n{note}```'.format(table=tabulate.tabulate(
-                    sorted(self.__scores.items(), key=lambda x: x[1], reverse=True), headers=['user', 'points']),
-                    note='{streaker} is currently riding the {multiplier}x streak'.format(
+                score = '```{table}\n\n{current}\n\n{roll}\n\n{streak}```'.format(table=tabulate.tabulate(
+                    sorted(self.__scores['points'].items(), key=lambda x: x[1], reverse=True),
+                    headers=['#', 'user', 'points'],
+                    showindex=range(1, len(self.__scores['points']) + 1)
+                ),
+                    current='{streaker} is currently riding the {multiplier}x streak'.format(
                         streaker=self.__previous_roll.owner,
                         multiplier=self.__previous_roll.streak_multiplier
-                    ) if self.__previous_roll else ''
+                    ) if self.__previous_roll else '',
+                    roll='highest roll: {roll}'.format(roll=self.__scores['highest'].get('roll', 'n/a')),
+                    streak='highest streak: {roll}'.format(roll=self.__scores['highest'].get('streak', 'n/a')),
                 )
                 await self.send_message(message.channel, score)
 

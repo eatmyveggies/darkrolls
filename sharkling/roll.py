@@ -50,11 +50,12 @@ class __Roll(object):
 
     def __str__(self):
         return '**{roll_type}** at {timestamp} for **{points}** point{plural} ' \
-               '({streak_multiplier}x from streak{rng_points_multiplier})'.format(
+               '({streak_multiplier}x from streak{rng_points_multiplier}) by {owner}'.format(
             roll_type=self.__class__.__name__, timestamp=self.timestamp, points=self.points,
             plural='s' if self.points > 1 else '', streak_multiplier=self.streak_multiplier,
             rng_points_multiplier=' and {digit}x from RNG'.format(digit=getattr(
                 self, 'rng_points_multiplier')) if getattr(self, 'rng_points_multiplier', None) else '',
+            owner=self.owner
         )
 
 
