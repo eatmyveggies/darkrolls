@@ -1,6 +1,6 @@
-sharkling
+Dark Rolls
 =
-Discord roll-bot for the Shark Squadron server.
+Dark Souls themed Discord roll-bot for the Shark Squadron server.
 
 Dependencies
 -
@@ -11,9 +11,9 @@ Dependencies
 Usage
 -
 1. Set the _'DISCORD_TOKEN_ENV'_ to be the bot's API token
-2. Run _bin/sharkling_
+2. Run _bin/darkrolls_
 3. Type _!roll_ in the chat
 
 Test
 -
-To run the tests, do _py.test test/test_sharkling.py_.
+To run the tests, do _py.test test/test_darkrolls.py_.
