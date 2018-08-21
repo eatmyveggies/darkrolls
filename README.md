@@ -8,7 +8,7 @@ Dependencies
 * [dill](https://pypi.org/project/dill/)
 * [tabulate](https://pypi.python.org/pypi/tabulate)
 * [discord](https://github.com/Rapptz/discord.py)
-* [pytest (just for tests)](https://pypi.python.org/pypi/pytest)
+* [pytest](https://pypi.python.org/pypi/pytest)
 
 Usage
 -
