@@ -1,3 +1,4 @@
+![Dark Sign](https://vignette.wikia.nocookie.net/darksouls/images/8/8a/Darksign_%28DSIII%29.png/revision/latest?cb=20160613233757)
 Dark Rolls
 =
 Dark Souls themed Discord roll-bot for the Shark Squadron server.
