@@ -1,19 +1,24 @@
-import pickle
+import dill
 import datetime
+from . import game
+
+def recover(path):
+    try:
+        return load(path)
+    except Exception:
+        return game.Campaign()
 
 
 def load(f):
-    try:
-        with open(f, 'rb') as fp:
-            return pickle.load(fp)
-    except (IOError, OSError):
-        return dict()
+    with open(f, 'rb') as fp:
+        return dill.load(fp)
+
 
 
 def save(data, f):
     try:
         with open(f, 'wb') as fp:
-            pickle.dump(data, fp)
+            dill.dump(data, fp)
     except (IOError, OSError):
         pass
 

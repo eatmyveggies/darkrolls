@@ -1,0 +1,42 @@
+credentials:
+  token_env: DARKROLLS_TOKEN
+
+logging:
+  format: "%(asctime)s:%(levelname)s:%(name)s: %(message)s"
+  path: /var/log/darkrolls/darkrolls.log
+
+db:
+  path: /var/data/darkrolls/rolls.pickle
+
+roll:
+  cooldown: 60  # seconds to wait between consecutive rolls
+  precedence: [octs, septs, sexts, quints, quads, trips, dubs]
+
+  dubs:
+    value: 10
+    length: -2
+
+  trips:
+    value: 50
+    length: -3
+
+  quads:
+    value: 250
+    length: -4
+
+  quints:
+    value: 1000
+    length: -5
+
+  sexts:
+    value: 5000
+    length: -6
+
+  septs:
+    value: 10000
+    length: -7
+
+  octs:
+    value: 25000
+    length: -8
+
