@@ -3,6 +3,7 @@ import discord
 import logging
 import tabulate
 import datetime
+import threading
 from . import config
 from . import backend
 from . import game
@@ -17,10 +18,14 @@ logger.addHandler(handler)
 logger.addHandler(console)
 
 
+
+
 class DarkRolls(discord.Client):
     def __init__(self):
         super(DarkRolls, self).__init__()
         self.__campaign = backend.recover(config.options['db']['path'])
+
+
 
     def run(self):
         @self.event
@@ -33,14 +38,20 @@ class DarkRolls(discord.Client):
         @self.event
         async def on_message(message):
             if message.content.lower().startswith('!rol'):
-                undead = self.__campaign.get_undead(name=message.content.nick)
+                undead = self.__campaign.find(name=message.content.nick)
                 timestamp = backend.localize(message.timestamp)
                 logger.info('[attempt] roll from "{undead}" at "{timestamp}"'.format(
                     undead=undead.name, timestamp=timestamp))
-                encounter = game.Encounter(undead, timestamp)
+                self.__campaign.encounters.append(game.Encounter(undead, timestamp, self.__campaign))
 
 
-            elif message.content.startswith('!weapon'):
+            elif message.content.startswith('!rest'):
+                pass
+
+            elif message.content.startswith('!invade'):
+                pass
+
+            elif message.content.startswith('!loot'):
                 pass
 
             elif message.content.startswith('!help'):
@@ -49,8 +60,11 @@ class DarkRolls(discord.Client):
                     message.channel,
                     '```{}```'.format(tabulate.tabulate(
                         [
-                            ('!roll', 'try your luck at a roll'),
-                            ('!help', 'print this message')
+                            ('!roll', 'roll for souls'),
+                            ('!loot', 'search your surroundings for loot'),
+                            ('!rest', 'cosy up to the warm bonfire, repair your weapon and introspect'),
+                            ('!invade', 'invade the world of another undead'),
+                            ('!help', 'Lordran can be unforgiving')
                         ],
                         headers=['command', 'description'])))
 

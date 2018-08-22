@@ -6,7 +6,7 @@ logging:
   path: /var/log/darkrolls/darkrolls.log
 
 db:
-  path: /var/data/darkrolls/rolls.pickle
+  campaign: /var/data/darkrolls/campaign.dill
 
 roll:
   cooldown: 60  # seconds to wait between consecutive rolls

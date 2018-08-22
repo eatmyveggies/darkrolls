@@ -2,6 +2,7 @@ import dill
 import datetime
 from . import game
 
+
 def recover(path):
     try:
         return load(path)
@@ -12,7 +13,6 @@ def recover(path):
 def load(f):
     with open(f, 'rb') as fp:
         return dill.load(fp)
-
 
 
 def save(data, f):
