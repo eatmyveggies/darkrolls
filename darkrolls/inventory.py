@@ -1,3 +1,6 @@
+import functools
+from . import perks
+
 class Broken(Exception):
     pass
 
@@ -23,12 +26,14 @@ class Weapon(object):
     def __init__(self, level=0, **kwargs):
         self.__attributes = kwargs
         self.__level = level
+        self.perks = [functools.partial(getattr(perks, perk), **attrs)
+                      for perk, attrs in self.__attributes.get('perks', {}).items()]
 
     def __getattribute__(self, item):
-        if item in self.__attributes:
-            return self.__attributes[item]
-        else:
+        try:
             return getattr(self, item)
+        except AttributeError:
+            return self.__attributes[item]
 
     @property
     def durability(self):
@@ -57,10 +62,9 @@ class Weapon(object):
         else:
             raise MaxUpgrade('{} has hit maximum level of upgrade'.format(self))
 
-
 class Unarmed(Weapon):
     def __init__(self):
-        super().__init__( **{
+        super().__init__(**{
             'name': 'hands',
             'max_durability': 10,
             'attack': 1,

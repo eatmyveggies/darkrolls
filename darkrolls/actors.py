@@ -1,9 +1,11 @@
 import datetime
+from . import config
 from . import inventory
-from .config import levels
+
 
 class NoWeapon(Exception):
     pass
+
 
 class Sheet(object):
     def __init__(self):
@@ -35,7 +37,7 @@ class Undead(object):
         if getattr(self, '__weapon'):
             return self.__weapon
         else:
-            self.__weapon = inventory.Unarmed()
+            self.__weapon = inventory.Weapon(level=0, **config.weapons['unarmed'])
             return self.__weapon
 
     def rest(self):
@@ -53,6 +55,3 @@ class Undead(object):
             self.__sheet.level_up()
         except inventory.NotEnoughSouls:
             pass
-
-
-

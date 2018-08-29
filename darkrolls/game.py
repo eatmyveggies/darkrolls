@@ -1,18 +1,19 @@
-import random
 import time
-import threading
+import random
 import datetime
-from . import roll
+import threading
 from . import actors
-from . import inventory
 from . import config
+from . import inventory
 
 
 def generate_weapon(undead):
-    max_tier = undead.level / 15
     level = random.randint(0, undead.level / 6)
-    return inventory.Weapon(level, **config.weapons[
-        random.choice([weapon for weapon in config.weapons if config.weapons[weapon]['tier'] <= max_tier])])
+    return inventory.Weapon(
+        level=level, **config.weapons[random.choice(
+            [weapon for weapon in config.weapons if
+             config.weapons[weapon]['tier'] <= min(
+                 undead.level / 15, config.options['weapons']['max_tier'])])])
 
 
 class Bonfire(threading.Thread):
@@ -67,17 +68,4 @@ class Encounter(object):
         return self.__undead
 
     def outcome(self):
-        if getattr(self, '__outcome'):
-            return self.__outcome
-        else:
-            if self.__undead.resting:
-                self.__outcome = roll.Nothing(self.__timestamp, 'Cannot roll while resting at the bonfire')
-            try:
-                self.__outcome = roll.resolve(self.__timestamp)(self.__campaign, self.__undead).combat()
-            except roll.InvalidRoll:
-                try:
-                    self.__outcome = roll.invasion(self.__timestamp, self.__undead, self.__campaign)
-                except roll.InvalidInvasion:
-                    self.__outcome = roll.Failure(self.__timestamp, 'You swing your weapon but there is nothing to hit')
-
-            return self.__outcome
+        pass

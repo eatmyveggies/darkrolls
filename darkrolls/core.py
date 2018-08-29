@@ -1,38 +1,32 @@
 import os
 import discord
-import logging
 import tabulate
 import datetime
-import threading
+from . import game
 from . import config
 from . import backend
-from . import game
-
-logger = logging.getLogger('discord')
-logger.setLevel(logging.INFO)
-console = logging.StreamHandler()
-console.setFormatter(logging.Formatter(config.options['logging']['format']))
-handler = logging.FileHandler(filename=config.options['logging']['path'], encoding='utf-8', mode='a')
-handler.setFormatter(logging.Formatter(config.options['logging']['format']))
-logger.addHandler(handler)
-logger.addHandler(console)
-
-
 
 
 class DarkRolls(discord.Client):
-    def __init__(self):
+    def __init__(self, gms):
         super(DarkRolls, self).__init__()
-        self.__campaign = backend.recover(config.options['db']['path'])
+        self.__logger = backend.get_logger(
+            name=config.options['logging']['name'],
+            format=config.options['logging']['format'],
+            path=config.options['logging']['path'])
+        self.__gms = gms
+        self.__campaign = backend.recover(config.options['db']['campaign'])
 
-
+    @property
+    def log(self):
+        return self.__logger
 
     def run(self):
         @self.event
         async def on_ready():
-            logger.info('{name} ({discord_id}) logged in!'.format(
+            self.log.info('{name} ({discord_id}) logged in!'.format(
                 name=self.user.name, discord_id=self.user.id))
-            logger.info('Current campaign started {delta} ago.'.format(
+            self.log.info('Current campaign started {delta} ago.'.format(
                 delta=datetime.datetime.now() - self.__campaign.start))
 
         @self.event
@@ -55,21 +49,29 @@ class DarkRolls(discord.Client):
                 pass
 
             elif message.content.startswith('!help'):
-
                 await self.send_message(
                     message.channel,
                     '```{}```'.format(tabulate.tabulate(
                         [
                             ('!roll', 'roll for souls'),
-                            ('!loot', 'search your surroundings for loot'),
-                            ('!rest', 'cosy up to the warm bonfire, repair your weapon and introspect'),
+                            ('!loot', 'search your surroundings for valuables'),
+                            ('!rest', 'cosy up to the warm bonfire'),
                             ('!invade', 'invade the world of another undead'),
                             ('!help', 'Lordran can be unforgiving')
                         ],
                         headers=['command', 'description'])))
 
+            elif message.content.startswith('!give'):
+                if message.author.id in self.__gms:
+                    try:
+                        weapon_name = message.content.split(" ")[1]
+                    except KeyError:
+                        pass
+                    else:
+                        embed = discord.Embed(title="Tile", description="Desc", color=0x00ff00)
+                        embed.add_field(name="Field1", value="hi", inline=False)
+                        embed.add_field(name="Field2", value="hi2", inline=False)
+                        await self.send_message(
+                            message.channel, '{} is a GM.'.format(message.author), embed=embed)
+
         super(DarkRolls, self).run(os.environ[config.options['credentials']['token_env']])
-
-
-if __name__ == '__main__':
-    DarkRolls().run()
