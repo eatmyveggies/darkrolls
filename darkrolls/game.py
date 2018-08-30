@@ -1,11 +1,13 @@
 import time
 import random
+import logging
 import datetime
 import threading
 from . import actors
 from . import config
 from . import inventory
 
+log = logging.getLogger(__name__)
 
 def generate_weapon(undead):
     level = random.randint(0, undead.level / 6)
@@ -34,7 +36,7 @@ class Bonfire(threading.Thread):
 class Campaign(object):
     def __init__(self):
         self.__start = datetime.datetime.now()
-        self.__encounters = dict()
+        self.__encounters = list()
         self.__undeads = dict()
 
     @property
@@ -49,12 +51,13 @@ class Campaign(object):
     def encounters(self):
         return self.__encounters
 
-    def find(self, name):
+    def find(self, undead):
         try:
-            return self.__undeads[name]
+            return self.__undeads[undead]
         except KeyError:
-            self.__undeads[name] = actors.Undead(name)
-            return self.__undeads[name]
+            log.info('undead "{}#{}" not found in campaign, creating character'.format(undead.name, undead.id))
+            self.__undeads[undead] = actors.Undead(undead)
+            return self.__undeads[undead]
 
 
 class Encounter(object):
